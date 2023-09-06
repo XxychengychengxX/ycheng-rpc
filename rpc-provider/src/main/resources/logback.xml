@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    一般说来，所对应的appender有几个set或者get方法就能相应地在XML中设置几个属性，例如ConsoleAppender中
+具有setlayout,setcontext,setencoder等等，就能在XML中写配置，具体的如下所示
+-->
+<!--
+常见的Appender以及大概的常用set方法：
+
+————————————————————————————————————————————Rollingfileappender————————————————————————————————————————————
+RollingFileAppender<ILoggerFactory> iLoggerFactoryRollingFileAppender = new RollingFileAppender<>();
+        /*iLoggerFactoryRollingFileAppender.setFile();
+            iLoggerFactoryRollingFileAppender.setAppend();
+            iLoggerFactoryRollingFileAppender.getRollingPolicy();
+            iLoggerFactoryRollingFileAppender.setTriggeringPolicy();
+            iLoggerFactoryRollingFileAppender.setContext();
+            iLoggerFactoryRollingFileAppender.setEncoder();
+            iLoggerFactoryRollingFileAppender.setLayout();*/
+            iLoggerFactoryRollingFileAppender.setName();
+
+——————————————————————————————————————————————————fileappender————————————————————————————————————————————
+        FileAppender<ILoggerFactory> iLoggerFactoryFileAppender = new FileAppender<>();
+        /*iLoggerFactoryFileAppender.setContext();
+            iLoggerFactoryFileAppender.setEncoder();
+            iLoggerFactoryFileAppender.setLayout();
+            iLoggerFactoryFileAppender.setFile();
+            iLoggerFactoryFileAppender.setAppend();
+            iLoggerFactoryFileAppender.setName();*/
+
+ —————————————————————————————————————————————consoleappender———————————————————————————————————————————
+        ConsoleAppender<ILoggerFactory> iLoggerFactoryConsoleAppender = new ConsoleAppender<>();
+       /* iLoggerFactoryConsoleAppender.setLayout();
+             iLoggerFactoryConsoleAppender.setContext();
+             iLoggerFactoryConsoleAppender.setEncoder();
+             iLoggerFactoryConsoleAppender.setTarget();
+             iLoggerFactoryConsoleAppender.setName();*/-->
+
+
+<!--常用的policy
+
+——————————————————————————————时间跟空间的policy（SizeAndTimeBasedRollingPolicy）——————————————————————————————
+SizeAndTimeBasedRollingPolicy<ILoggerFactory> iLoggerFactorySizeAndTimeBasedRollingPolicy =
+                new SizeAndTimeBasedRollingPolicy<>();
+        iLoggerFactorySizeAndTimeBasedRollingPolicy.setMaxFileSize();
+        iLoggerFactorySizeAndTimeBasedRollingPolicy.setFileNamePattern();
+        iLoggerFactorySizeAndTimeBasedRollingPolicy.setMaxHistory();
+        iLoggerFactorySizeAndTimeBasedRollingPolicy.setContext();
+
+
+——————————————————————————————时间的policy（TimeBasedRollingPolicy）——————————————————————————————
+         TimeBasedRollingPolicy<ILoggerFactory> iLoggerFactoryTimeBasedRollingPolicy = new TimeBasedRollingPolicy<>();
+        iLoggerFactoryTimeBasedRollingPolicy.setContext();
+        iLoggerFactoryTimeBasedRollingPolicy.setMaxHistory();
+        iLoggerFactoryTimeBasedRollingPolicy.setFileNamePattern();
+        iLoggerFactoryTimeBasedRollingPolicy.setCleanHistoryOnStart();
+
+        -->
+
+<configuration>
+    <!--格式化输出：%d表示日期，%thread表示线程名，%-5level： 级别从左显示5个字符宽度 %msg：日志消息，%n是换行符-->
+    <property name="ConsolePattern"
+              value="%date{yyyy-MM-dd HH:mm:ss} | %highlight(%-5.5p) | %boldYellow(%-80.80c) | %boldGreen(%-8.8L): %magenta(%-30M) : %boldBlue(%-20.20t) | %cyan(%m) %n"/>
+    <property name="FilePattern"
+              value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"/>
+    <property name="mydir"
+              value="E:\Java\MyProject\hhRepository\mylog"/>
+    <!--Appender: 设置日志信息的去向,常用的有以下几个 ch.qos.logback.core.ConsoleAppender (控制台)
+    ch.qos.logback.core.rolling.RollingFileAppender (文件 大小到达指定尺寸的时候产生一个新文件)
+     ch.qos.logback.core.FileAppender (文件) -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <!--输出流对象 默认 System.out 改为 System.err-->
+        <target>System.out</target>
+        <!--日志格式配置-->
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${ConsolePattern}</pattern>
+        </encoder>
+        <!--过滤器配置-->
+        <!--<filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>       &lt;!&ndash;如果是匹配，就接受这条规则【整个appender块】，FilterReply类（DENY，NEUTRAL，ACCEPT）&ndash;&gt;
+            <onMismatch>DENY</onMismatch>   &lt;!&ndash;如果没有匹配，就禁止&ndash;&gt;
+            &lt;!&ndash;<onMismatch>NEUTRAL</onMismatch>&ndash;&gt;     &lt;!&ndash;如果没有匹配，就忽略这条规则，看下一个【appender块规则是否接受】&ndash;&gt;
+        </filter>-->
+    </appender>
+    <!-- 用来设置某一个包或者具体的某一个类的日志打印级别、以及指定 <appender>。-->
+
+    <!--3. FileAppender配置-->
+
+    <!--<appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>${mydir}\logback.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${file_log_pattern}</pattern>
+        </encoder>
+
+    </appender>-->
+
+    <appender name="warn_rollingfile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 同时有file 和 fileNamePattern标签时,当天的命名按照file中配置的值命名,明天会将其修改成今天的日期
+          好处: 今天的日志就叫info.log 便于查找 明天之后的就会按照命名规则命名 -->
+        <file>${mydir}\warnLog\roll_logback.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FilePattern}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+            <MaxHistory>14</MaxHistory>
+            <FileNamePattern>${mydir}\warnlog-%d{yyyy-MM-dd}log%i.gz</FileNamePattern>
+        </rollingPolicy>
+        <!-- 此日志文件只记录info级别的 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>WARN</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+
+    <appender name="info_rollingfile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${mydir}\info\roll_logback.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FilePattern}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+            <MaxHistory>14</MaxHistory>
+            <FileNamePattern>${mydir}\infolog-%d{yyyy-MM-dd}log%i.gz</FileNamePattern>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+
+    </appender>
+
+    <!--<logger>仅有一个name属性，一个可选的 level和一个可选的addtivity属性 name: 用来指定受此logger约束的某一个包或者具体的某一个类。
+         level:
+         用来设置打印级别，大小写无关：TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF， 如果未设置此属性，那么当前logger将会继承上级的级 别。
+         additivity:
+         是否向上级loger传递打印信息。默认是true。
+          <logger>可以包含零个或多个<appender-ref>元素， 标识这个appender将会添加到这个 logger -->
+    <!-- root 也是<logger>元素，但是它是根logger。默认debug level:用来设置打印级别，大小写无关：TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF，
+    <root>可以包含零个或多个<appender-ref>元 素，标识这个appender将会添加到这个 logger。 -->
+
+<!--    <logger name="infolog" additivity="false" >
+        <appender-ref ref="info_rollingfile"/>
+    </logger>
+
+    <logger name="warnlog" additivity="false" >
+        <appender-ref ref="warn_rollingfile"/>
+    </logger>-->
+
+    <logger name="com.alibaba.nacos" additivity="false" level="WARN">
+        <appender-ref ref="console"/>
+    </logger>
+
+    <root level="DEBUG">
+        <appender-ref ref="console"/>
+    </root>
+
+</configuration>
+
+
