@@ -30,10 +30,11 @@ public class RoundRobinBalancer extends AbstractLoadBalancer {
         return new RoundRobinSelector(serviceList);
     }
 
+
     private static class RoundRobinSelector implements Selector {
 
-        private List<Instance> instanceList;
-        private AtomicInteger index;
+        private final List<Instance> instanceList;
+        private final AtomicInteger index;
 
         public RoundRobinSelector(List<Instance> instanceList) {
             this.instanceList = instanceList;
@@ -50,17 +51,15 @@ public class RoundRobinBalancer extends AbstractLoadBalancer {
             if (instanceList == null || instanceList.size() == 0) {
                 throw new RuntimeException("selector检测到服务列表为空！！");
             }
-            Instance instance = instanceList.get(index.get());
-            if (index.get() == instanceList.size() - 1) {
-                index.set(0);
-            } else {
-                index.incrementAndGet();
-            }
+            Instance instance = instanceList.get(index.get() % instanceList.size());
+
+            index.incrementAndGet();
+
             String ip = instance.getIp();
             int port = instance.getPort();
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(ip, port);
 
-            return inetSocketAddress;
+            return new InetSocketAddress(ip, port);
+
         }
 
         @Override

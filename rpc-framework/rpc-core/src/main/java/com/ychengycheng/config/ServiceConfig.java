@@ -20,7 +20,7 @@ public class ServiceConfig<T> {
     /**
      * 这里是接口
      */
-    private Class<T> interfaceProvider;
+    private Class<?> interfaceProvider;
     /**
      * 这里是接口具体实现类
      */

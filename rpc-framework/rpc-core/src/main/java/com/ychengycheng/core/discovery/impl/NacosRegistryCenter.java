@@ -9,9 +9,9 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.naming.NamingFactory;
 import com.alibaba.nacos.api.naming.NamingService;
 import com.alibaba.nacos.api.naming.pojo.Instance;
+import com.ychengycheng.YchengYchengRPCBootstrap;
 import com.ychengycheng.config.RegistryConfig;
 import com.ychengycheng.core.discovery.RegistryCenter;
-import com.ychengycheng.util.NacosUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -21,23 +21,22 @@ import java.util.Properties;
 @Slf4j
 public class NacosRegistryCenter implements RegistryCenter {
     @Override
-    public boolean isInstanceExist(RegistryConfig registryConfig) {
+    public boolean isInstanceExist(RegistryConfig registryConfig, int port) {
         if (registryConfig == null) {
             log.error("注册配置项为空，请加载注册配置项后重试");
         } else {
             //从注册配置中拿到一系列信息
             String clientAddr = registryConfig.getClientAddr();
-            int clientPort = registryConfig.getClientPort();
+
             String applicationName = registryConfig.getApplicationName();
 
             //todo：这里也需要解耦
             try {
-                NamingService namingService = NacosUtil.getNamingService(registryConfig);
+                NamingService namingService = getNamingService(registryConfig);
                 List<Instance> allInstances = namingService.getAllInstances(applicationName);
                 if (!allInstances.isEmpty()) {
                     for (Instance instance : allInstances) {
-                        if (instance.getIp()
-                                    .equals(clientAddr) && instance.getPort() == clientPort) {
+                        if (instance.getIp().equals(clientAddr) && instance.getPort() == port) {
                             return true;
                         }
                     }
@@ -52,15 +51,23 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public List<Instance> lookup(String applicationName) {
-        NamingService naming = null;
+        NamingService naming;
         List<Instance> instances = null;
         try {
+            //todo:这里后面重新封装
+            RegistryConfig registryConfig = YchengYchengRPCBootstrap.getInstance()
+                                                                    .getConfiguration()
+                                                                    .getRegistryConfig();
+            String serverAddr = registryConfig.getServerAddr();
+            int serverPort = registryConfig.getServerPort();
             Properties properties = new Properties();
+            properties.put(PropertyKeyConst.SERVER_ADDR, serverAddr + ":" + serverPort);
             properties.put(PropertyKeyConst.USERNAME, "nacos");
             properties.put(PropertyKeyConst.PASSWORD, "nacos");
-            //todo:这里后面重新封装
-            properties.put(PropertyKeyConst.SERVER_ADDR, "127.0.0.1:8848");
+
             naming = NamingFactory.createNamingService(properties);
+
+            //naming.subscribe(applicationName, new OnLineStatusWatcher());
             instances = naming.selectInstances(applicationName, true);
         } catch (NacosException e) {
             log.error("获取服务实例【{}】异常", applicationName);
@@ -71,20 +78,17 @@ public class NacosRegistryCenter implements RegistryCenter {
     /**
      * 向注册中心正式发布服务
      *
-     * @param registerInstance 预注册的服务实例
-     * @param registryConfig   注册信息
+     * @param interfaceName  接口的全限定类名
+     * @param registryConfig 注册信息
      * @return 成功返回true
      */
     @Override
-    public boolean publish(Object registerInstance, RegistryConfig registryConfig) {
-        Instance nacosInstance = (Instance) registerInstance;
-        //todo:这里需要抽象出一个可修改的类（或者是工具类）
-        String serverAddr = registryConfig.getServerAddr();
-        int serverPort = registryConfig.getServerPort();
+    public boolean publish(String interfaceName, RegistryConfig registryConfig) {
         //properties.put(PropertyKeyConst.ENDPOINT,registryConfig.getClientAddr());
         try {
-            NamingService namingService = NacosUtil.getNamingService(registryConfig);
-            namingService.registerInstance(registryConfig.getApplicationName(), nacosInstance);
+            NamingService namingService = getNamingService(registryConfig);
+            Instance registerInstance = getRegisterInstance(registryConfig);
+            namingService.registerInstance(interfaceName, registerInstance);
         } catch (NacosException e) {
             log.error("注册服务失败，请检查后重试！！" + e.getMessage());
             return false;
@@ -92,11 +96,13 @@ public class NacosRegistryCenter implements RegistryCenter {
         return true;
     }
 
+
     @Override
-    public Object getRegisterInstance(RegistryConfig registryConfig) {
+    public Instance getRegisterInstance(RegistryConfig registryConfig) {
 
         String clientAddr = registryConfig.getClientAddr();
         int clientPort = registryConfig.getClientPort();
+
         Instance instance = new Instance();
         //创建服务节点
         instance.setIp(clientAddr);
@@ -111,5 +117,27 @@ public class NacosRegistryCenter implements RegistryCenter {
 
 
         return instance;
+    }
+
+    /**
+     * 获取nacos定义的namingSerivce
+     *
+     * @param registryConfig 服务注册的配置
+     * @return
+     */
+    private NamingService getNamingService(RegistryConfig registryConfig) {
+        NamingService namingService;
+        String serverAddr = registryConfig.getServerAddr();
+        int serverPort = registryConfig.getServerPort();
+        Properties properties = new Properties();
+        properties.put(PropertyKeyConst.USERNAME, "nacos");
+        properties.put(PropertyKeyConst.PASSWORD, "nacos");
+        properties.put(PropertyKeyConst.SERVER_ADDR, serverAddr + ":" + serverPort);
+        try {
+            namingService = NamingFactory.createNamingService(properties);
+        } catch (NacosException e) {
+            throw new RuntimeException(e);
+        }
+        return namingService;
     }
 }

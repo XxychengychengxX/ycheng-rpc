@@ -1,0 +1,3 @@
+3-hessian-com.ychengycheng.core.serialize.impl.HessianSerializer
+1-jdk-com.ychengycheng.core.serialize.impl.JdkSerializer
+2-json-com.ychengycheng.core.serialize.impl.JsonSerializer

@@ -12,9 +12,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class AbstractLoadBalancer implements LoadBalancer {
 
     // 一个服务会匹配一个selector
-
-
     private Map<String, Selector> cache = new ConcurrentHashMap<>(8);
+
+    /**
+     * 感知节点发生动态上下线，重新进行负载均衡
+     *
+     * @param serviceName 服务名称
+     * @param lookup      节点列表
+     */
+    @Override
+    public void reLoadBalance(String serviceName, List<Instance> lookup) {
+        cache.put(serviceName, getSelector(lookup));
+    }
 
     @Override
     public InetSocketAddress selectServiceAddress(String serviceName) {
@@ -25,8 +34,7 @@ public abstract class AbstractLoadBalancer implements LoadBalancer {
         // 2、如果没有，就需要为这个service创建一个selector
         if (selector == null) {
             // 对于这个负载均衡器，内部应该维护服务列表作为缓存
-            List<Instance> instanceList = YchengYchengRPCBootstrap.getInstance()
-                                                                  .getRegistryCenter()
+            List<Instance> instanceList = YchengYchengRPCBootstrap.getInstance().getConfiguration().getRegistryCenter()
                                                                   .lookup(serviceName);
 
             // 提供一些算法负责选取合适的节点

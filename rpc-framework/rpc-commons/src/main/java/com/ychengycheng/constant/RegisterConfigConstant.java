@@ -14,7 +14,7 @@ public class RegisterConfigConstant {
 
     public static final String DEFAULT_NACOS_SERVER_ADDR = "127.0.0.1";
     public static final int DEFAULT_NACOS_SERVER_PORT = 8848;
-    public static final String DEFAULT_NACOS_GROUP_ID = "DEAFAULT_GROUP";
+    public static final String DEFAULT_NACOS_GROUP_ID = "DEFAULT_GROUP";
     public static final String DEFAULT_NACOS_CLIENT_ADDR = "127.0.0.1";
     public static final Integer DEFAULT_NACOS_CLIENT_PORT = 9980;
 

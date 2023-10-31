@@ -27,7 +27,8 @@ public class RegistryConfig {
     //指定链接的注册中心的端口
     private int serverPort;
     private String serverType;
-    private String clientAddr;
-    private int clientPort;
 
+    private String clientAddr;
+
+    private int clientPort;
 }

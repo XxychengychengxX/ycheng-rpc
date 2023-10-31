@@ -1,17 +1,14 @@
 package com.ychengycheng;
 
+import com.ychengycheng.annotation.YchengApi;
 import com.ychengycheng.channel.initializer.SimpleProviderChannelInitializer;
-import com.ychengycheng.config.ProtocolConfig;
-import com.ychengycheng.config.ReferenceConfig;
-import com.ychengycheng.config.RegistryConfig;
-import com.ychengycheng.config.ServiceConfig;
+import com.ychengycheng.config.*;
 import com.ychengycheng.core.detector.HeartbeatDetector;
 import com.ychengycheng.core.discovery.RegistryCenter;
-import com.ychengycheng.core.discovery.impl.NacosRegistryCenter;
 import com.ychengycheng.core.loadbalancer.LoadBalancer;
-import com.ychengycheng.core.loadbalancer.impl.RoundRobinBalancer;
+import com.ychengycheng.core.protection.impl.TokenBucketRateLimiter;
 import com.ychengycheng.message.YchengRpcRequest;
-import com.ychengycheng.util.IdGenerator;
+import com.ychengycheng.util.ClassFileUtil;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -19,13 +16,14 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * @author Valar Morghulis
@@ -33,10 +31,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class YchengYchengRPCBootstrap {
 
+
     public static final ThreadLocal<YchengRpcRequest> REQUEST_THREAD_LOCAL = new ThreadLocal<>();
-    public static final IdGenerator ID_GENERATOR = new IdGenerator(1, 2);
+
     /**
-     * 定义netty——channel的缓存
+     * 定义netty——channel的缓存（用于服务消费者）
      */
     public static final Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>();
     /**
@@ -50,33 +49,23 @@ public class YchengYchengRPCBootstrap {
     /**
      * 维护发布且暴露的服务列表，key->interface的全限定名，value->serviceConfig
      */
-    public static final Map<String, ServiceConfig<?>> SERVICE_LIST = new HashMap<>();
-    public static LoadBalancer loadBalancer;
-    public static String serializeType = "jdk";
-    public static String compressType = "gzip";
-    private static YchengYchengRPCBootstrap ychengYchengRPCBootstrap = new YchengYchengRPCBootstrap();
-    /**
-     * 服务注册配置
-     */
-    private RegistryConfig registryConfig;
-    /**
-     * 协议
-     */
-    private ProtocolConfig protocolConfig;
-    /**
-     * 服务注册中心
-     */
-    private RegistryCenter registryCenter;
+    public static final Map<String, ServiceConfig<?>> SERVICE_LIST = new ConcurrentHashMap<>();
+    private static final YchengYchengRPCBootstrap ychengYchengRPCBootstrap = new YchengYchengRPCBootstrap();
+    private final BootStrapConfiguration configuration;
 
     /**
      * 将构造方法私有化
      */
     private YchengYchengRPCBootstrap() {
+        configuration = new BootStrapConfiguration();
     }
-
 
     public static YchengYchengRPCBootstrap getInstance() {
         return ychengYchengRPCBootstrap;
+    }
+
+    public BootStrapConfiguration getConfiguration() {
+        return configuration;
     }
 
     /**
@@ -87,7 +76,7 @@ public class YchengYchengRPCBootstrap {
      */
     public YchengYchengRPCBootstrap application(String applicationName) {
         //设置注册的服务名
-        registryConfig.setApplicationName(applicationName);
+        configuration.getRegistryConfig().setApplicationName(applicationName);
         return this;
     }
 
@@ -99,12 +88,20 @@ public class YchengYchengRPCBootstrap {
      */
     public YchengYchengRPCBootstrap register(RegistryConfig registryConfig) {
         if (log.isDebugEnabled()) {
-            log.debug("目前工程使用的注册信息：" + registryConfig.toString());
+            log.debug("The register info is： [{}]." + registryConfig.toString());
         }
-        //TODO:这里要支持多个配置中心和多个balancer，需要依赖抽象,耦合度还是高，后面想想怎么优化
-        this.registryCenter = new NacosRegistryCenter();
-        this.registryConfig = registryConfig;
-        YchengYchengRPCBootstrap.loadBalancer = new RoundRobinBalancer();
+        configuration.setRegistryConfig(registryConfig);
+        return this;
+    }
+
+    /**
+     * 配置负载均衡策略
+     *
+     * @param loadBalancer 负载均衡策略
+     * @return this
+     */
+    public YchengYchengRPCBootstrap loadBalancer(LoadBalancer loadBalancer) {
+        configuration.setLoadBalancer(loadBalancer);
         return this;
     }
 
@@ -115,32 +112,21 @@ public class YchengYchengRPCBootstrap {
      * @return this
      */
     public YchengYchengRPCBootstrap protocol(ProtocolConfig protocolConfig) {
-        if (log.isDebugEnabled()) {
-            log.debug("目前工程使用的协议信息：" + protocolConfig.toString());
-        }
-        this.protocolConfig = protocolConfig;
+        configuration.setProtocolConfig(protocolConfig);
         return this;
     }
 
     /**
-     * 发布服务，将接口-》实现都注册到服务注册中心
+     * 发布服务，将接口-> 实现都注册到服务注册中心
      *
      * @param serviceConfig 服务的信息封装
-     * @return this
      */
-    public YchengYchengRPCBootstrap publish(ServiceConfig<?> serviceConfig) {
-        boolean publish = false;
-        if (log.isDebugEnabled()) {
-            log.debug("服务{}，即将被注册", serviceConfig.getInterfaceProvider().getName());
-        }
-        //判断相同服务实例是否已经存在
-        boolean instanceExist = registryCenter.isInstanceExist(registryConfig);
-        //如果不存在则开始注册
-        if (!instanceExist) {
-            //todo:getRegisterInstance这里需要抽象出一个返回类型，而不是使用Object
-            Object registerInstance = registryCenter.getRegisterInstance(registryConfig);
-            publish = registryCenter.publish(registerInstance, registryConfig);
-        }
+    public void publish(ServiceConfig<?> serviceConfig) {
+        boolean publish;
+        RegistryCenter registryCenter = configuration.getRegistryCenter();
+        RegistryConfig registryConfig = configuration.getRegistryConfig();
+        String name = serviceConfig.getInterfaceProvider().getName();
+        publish = registryCenter.publish(name, registryConfig);
         /*
          *  当服务调用方使用接口，方法名，具体的方法参数列表向提供者发起调用，怎么知道使用哪一个实现呢
          * 1.自己new 一个
@@ -148,10 +134,12 @@ public class YchengYchengRPCBootstrap {
          * 3.手动维护一个映射关系
          * */
         if (publish) {
-
             SERVICE_LIST.put(serviceConfig.getInterfaceProvider().getName(), serviceConfig);
+            if (log.isDebugEnabled()) {
+                log.debug("publish service [{}] successfully .", serviceConfig.getInterfaceProvider().getName());
+            }
         }
-        return this;
+
     }
 
     /**
@@ -169,10 +157,12 @@ public class YchengYchengRPCBootstrap {
      * 启动服务
      */
     public void start() {
+        TokenBucketRateLimiter rateLimiter = new TokenBucketRateLimiter(10, 2);
+        configuration.setRateLimiter(rateLimiter);
         NioEventLoopGroup boss = new NioEventLoopGroup(2);
         NioEventLoopGroup worker = new NioEventLoopGroup(10);
-        int clientPort = registryConfig.getClientPort();
-        String clientAddr = registryConfig.getClientAddr();
+        int clientPort = configuration.getPort();
+        String clientAddr = configuration.getRegistryConfig().getClientAddr();
         try {
             //2.需要一个服务器引导程序
             ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -182,7 +172,7 @@ public class YchengYchengRPCBootstrap {
                            .childHandler(new SimpleProviderChannelInitializer());
             //4.进行服务器端口监听
             ChannelFuture channelFuture = serverBootstrap.bind(clientAddr, clientPort).sync();
-            log.info("netty服务器启动成功，服务器监听ip地址：{}", clientAddr + ":" + clientPort);
+            log.info("netty server start successfully ，listening ip ：{} ", clientAddr + ":" + clientPort);
             //关闭通道
             channelFuture.channel().closeFuture().sync();
         } catch (Exception e) {
@@ -193,9 +183,6 @@ public class YchengYchengRPCBootstrap {
         }
     }
 
-    public RegistryCenter getRegistryCenter() {
-        return registryCenter;
-    }
 
     /*----------------------------消费方使用的api-------------------------*/
 
@@ -210,16 +197,77 @@ public class YchengYchengRPCBootstrap {
         //开启心跳检测
         HeartbeatDetector.detectHeartbeat(referenceConfig.getInterfaceRef().getName());
         //拿到相关的配置项，方便服务调用方创造代理对象
-        if (registryConfig == null) {
+        if (configuration.getRegistryConfig() == null) {
             log.error("注册配置信息丢失");
         } else {
-            referenceConfig.setRegistryConfig(registryConfig);
+            referenceConfig.setRegistryConfig(configuration.getRegistryConfig());
         }
         return this;
     }
 
-    public YchengYchengRPCBootstrap serialize(String jdk) {
-        serializeType = jdk;
+    /**
+     * 配置序列化方式
+     *
+     * @param serializeType
+     * @return
+     */
+    public YchengYchengRPCBootstrap serialize(String serializeType) {
+        configuration.getProtocolConfig().setSerializeType(serializeType);
         return this;
     }
+
+    /**
+     * 配置压缩方式
+     *
+     * @param compressType
+     * @return
+     */
+    public YchengYchengRPCBootstrap compress(String compressType) {
+        configuration.getProtocolConfig().setCompressType(compressType);
+
+        return this;
+    }
+
+    /**
+     * 扫描服务包进行服务发布
+     *
+     * @param packageName
+     * @return
+     */
+    public YchengYchengRPCBootstrap scan(String packageName) {
+        // 1、需要通过packageName获取其下的所有的类的权限定名称
+        List<String> classNames = ClassFileUtil.getAllClassNames(packageName);
+        // 2、通过反射获取他的接口，构建具体实现
+        List<Class<?>> classes = classNames.stream().map(className -> {
+            try {
+                return Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }).filter(clazz -> clazz.getAnnotation(YchengApi.class) != null).collect(Collectors.toList());
+
+        for (Class<?> clazz : classes) {
+            // 获取他的接口
+            Class<?>[] interfaces = clazz.getInterfaces();
+            Object instance;
+            try {
+                instance = clazz.getConstructor().newInstance();
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
+                     NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+
+            // 获取分组信息
+            for (Class<?> anInterface : interfaces) {
+                ServiceConfig<?> serviceConfig = new ServiceConfig<>();
+                serviceConfig.setInterfaceProvider(anInterface);
+                serviceConfig.setRef(instance);
+
+                // 3、发布
+                publish(serviceConfig);
+            }
+        }
+        return ychengYchengRPCBootstrap;
+    }
+
 }

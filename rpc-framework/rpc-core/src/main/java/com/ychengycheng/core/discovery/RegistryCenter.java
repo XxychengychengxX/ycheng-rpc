@@ -23,14 +23,16 @@ public interface RegistryCenter {
      * @param registryConfig 注册信息
      * @return 链接实例Instance
      */
-    Object getRegisterInstance(RegistryConfig registryConfig);
+    Instance getRegisterInstance(RegistryConfig registryConfig);
 
     /**
      * 进行判断服务是否存在
+     *
      * @param rpcBootstrap 启动类配置
+     * @param port nacos客户端的端口
      * @return 存在返回true
      */
-    boolean isInstanceExist(RegistryConfig rpcBootstrap);
+    boolean isInstanceExist(RegistryConfig rpcBootstrap, int port);
 
     /**
      *
@@ -41,9 +43,10 @@ public interface RegistryCenter {
 
     /**
      * 向注册中心正式发布服务
-     * @param registerInstance 预注册的服务实例
+     *
+     * @param name 服务名（这里是接口的全限定类名）
      * @param registryConfig 注册信息
      * @return 成功返回true
      */
-    boolean publish(Object registerInstance, RegistryConfig registryConfig);
+    boolean publish(String name, RegistryConfig registryConfig);
 }

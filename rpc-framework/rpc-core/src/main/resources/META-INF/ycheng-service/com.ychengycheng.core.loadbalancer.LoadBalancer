@@ -1,0 +1,3 @@
+1-roundRobin-com.ychengycheng.core.loadbalancer.impl.RoundRobinBalancer
+2-minimumResponseTimeLoadBalancer-com.ychengycheng.core.loadbalancer.impl.RoundRobinBalancer
+3-consistentHashLoadBalancer-com.ychengycheng.core.loadbalancer.impl.ConsistentHashLoadBalancer

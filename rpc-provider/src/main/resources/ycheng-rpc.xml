@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration SYSTEM "http://XxychengychengxX.com/ycheng-rpc.dtd">
+<configuration>
+
+    <port>9989</port>
+
+    <!--
+    //服务名
+    private String applicationName;
+    //指定链接的注册中心的ip地址
+    private String serverAddr;
+    //指定链接的注册中心的端口
+    private int serverPort;
+    private String serverType;
+    private String clientAddr;
+    private int clientPort;-->
+
+    <registry appName="provider-01">
+        <server addr="8.130.12.102" port="8848" type="nacos"/>
+        <client addr="127.0.0.1"/>
+    </registry>
+
+
+    <registry-center class="com.ychengycheng.core.discovery.impl.NacosRegistryCenter"/>
+    <id-generator class="com.ychengycheng.util.IdGenerator" dataCenterId="1" machineId="1"/>
+    <loadBalancer class="com.ychengycheng.core.loadbalancer.impl.RoundRobinBalancer"/>
+<!--
+    <rate-limiter class="com.ychengycheng.core.protection.impl.TokenBucketRateLimiter" capacity="10" rate="1"/>
+-->
+
+</configuration>

@@ -7,11 +7,12 @@ package com.ychengycheng.proxy.handler;
 import com.ychengycheng.YchengYchengRPCBootstrap;
 import com.ychengycheng.channel.initializer.NettyBootstrapInitializer;
 import com.ychengycheng.config.RegistryConfig;
+import com.ychengycheng.core.compress.CompressorFactory;
+import com.ychengycheng.core.serialize.SerializerFactory;
+import com.ychengycheng.emun.RequestType;
 import com.ychengycheng.exception.NettyExcetion;
 import com.ychengycheng.message.RequestPayload;
 import com.ychengycheng.message.YchengRpcRequest;
-import com.ychengycheng.util.compress.CompressorFactory;
-import com.ychengycheng.util.serialize.SerializeFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import lombok.AllArgsConstructor;
@@ -57,8 +58,12 @@ public class ConsumerInvocationHandler implements InvocationHandler {
         /* String ip = instance.getIp();*/
         /* int port = instance.getPort();*/
         /* InetSocketAddress inetSocketAddress = new InetSocketAddress(ip, port);*/
-        InetSocketAddress address = YchengYchengRPCBootstrap.loadBalancer.selectServiceAddress(name);
+        InetSocketAddress address = YchengYchengRPCBootstrap.getInstance()
+                                                            .getConfiguration()
+                                                            .getLoadBalancer()
+                                                            .selectServiceAddress(name);
         //InetSocketAddress inetSocketAddress = new InetSocketAddress("127.0.0.1", 8848);
+        //3.判断当前服务是否已经被熔断，熔断则调用降级方法
 
 
         //2.创建channel
@@ -89,12 +94,23 @@ public class ConsumerInvocationHandler implements InvocationHandler {
                                                .build();
         //todo：这里的请求id，压缩类型和请求类型等数据还要改变
         YchengRpcRequest ychengRpcRequest = YchengRpcRequest.builder()
-                                                            .requestId(YchengYchengRPCBootstrap.ID_GENERATOR.getId())
+                                                            .requestId(YchengYchengRPCBootstrap.getInstance()
+                                                                                               .getConfiguration()
+                                                                                               .getIdGenerator()
+                                                                                               .getId())
                                                             .compressType(CompressorFactory.getCompressor(
-                                                                    YchengYchengRPCBootstrap.compressType).getCode())
-                                                            .requestType((byte) 1)
-                                                            .serializeType(SerializeFactory.getSerializer(
-                                                                    YchengYchengRPCBootstrap.serializeType).getCode())
+                                                                                                   YchengYchengRPCBootstrap.getInstance()
+                                                                                                                           .getConfiguration()
+                                                                                                                           .getProtocolConfig()
+                                                                                                                           .getCompressType())
+                                                                                           .getCode())
+                                                            .requestType(RequestType.REQUEST.getId())
+                                                            .serializeType(SerializerFactory.getSerializer(
+                                                                                                    YchengYchengRPCBootstrap.getInstance()
+                                                                                                                            .getConfiguration()
+                                                                                                                            .getProtocolConfig()
+                                                                                                                            .getSerializeType())
+                                                                                            .getCode())
                                                             .requestPayload(payload)
                                                             .timeStamp(System.currentTimeMillis())
                                                             .build();
@@ -163,7 +179,7 @@ public class ConsumerInvocationHandler implements InvocationHandler {
             try {
                 channel = channelCompletableFuture.get(3, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                log.error("获取通道时发生异常：" + e.getMessage());
+                log.error("Exception occurs when getting channel：" + e.getMessage());
                 throw new NettyExcetion(e);
             }
 
@@ -173,7 +189,7 @@ public class ConsumerInvocationHandler implements InvocationHandler {
         //3.如果进行操作后channel仍然为空，则抛异常
 
         if (channel == null) {
-            log.error("获取建立与【{}】的通道时发生了异常",
+            log.error("Exception occurs when getting channel [{}]：",
                       registryConfig.getServerAddr() + registryConfig.getServerPort());
         }
         return channel;

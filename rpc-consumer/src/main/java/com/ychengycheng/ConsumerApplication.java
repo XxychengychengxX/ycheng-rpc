@@ -1,8 +1,7 @@
 package com.ychengycheng;
 
 import com.ychengycheng.config.ReferenceConfig;
-import com.ychengycheng.config.RegistryConfig;
-import com.ychengycheng.constant.RegisterConfigConstant;
+import com.ychengycheng.service.GreetingService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -12,15 +11,15 @@ public class ConsumerApplication {
         ReferenceConfig<GreetingService> referenceConfig = new ReferenceConfig<>();
         referenceConfig.setInterfaceRef(GreetingService.class);
 
-        RegistryConfig registryConfig = new RegistryConfig();
+        /*RegistryConfig registryConfig = new RegistryConfig();
         registryConfig.setServerType(RegisterConfigConstant.NACOS);
         registryConfig.setServerPort(RegisterConfigConstant.DEFAULT_NACOS_SERVER_PORT);
-        registryConfig.setServerAddr(RegisterConfigConstant.DEFAULT_NACOS_SERVER_ADDR);
+        registryConfig.setServerAddr(RegisterConfigConstant.DEFAULT_NACOS_SERVER_ADDR);*/
        /* try {
             Optional<Inet4Address> localIp4Address = InetUtil.getLocalIp4Address();
             String hostAddress = localIp4Address.get().getHostAddress();
             registryConfig.setClientAddr(hostAddress);
-            //todo:这里以后要解决端口的问题，思路：1.使用main方法的args传参
+
             registryConfig.setClientPort(9989);
 
         } catch (SocketException e) {
@@ -35,17 +34,16 @@ public class ConsumerApplication {
          * */
         YchengYchengRPCBootstrap.getInstance()
                                 //配置注册中心
-                                .register(registryConfig)
-                                .application("first-consumer")
-                                .serialize("jdk")
                                 //选择一个服务并链接
                                 .reference(referenceConfig);
         //获取代理对象
         //（调用方法）
+        //todo:如果这里fork多个子线程，每个子线程分别调用不同的service，会不会复用同一个断路器？
         GreetingService greetingService = referenceConfig.get();
-        log.info("获取到对象：{}，即将开始远程调用----", greetingService.getClass().getName());
+        log.info("Get the instance：{}，the remote procedure call is about to begin....",
+                 greetingService.getClass().getName());
         String s = greetingService.sayHello();
-        log.info("greetingService.sayHello()--->{}", s);
+        log.info("The Result is : ---> {}", s);
         //log.info(greetingService.toString());
         //String s = greetingService.sayHello();
         //log.info(s);

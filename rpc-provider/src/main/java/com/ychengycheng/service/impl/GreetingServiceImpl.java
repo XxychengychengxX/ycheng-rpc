@@ -5,8 +5,10 @@
 package com.ychengycheng.service.impl;
 
 
-import com.ychengycheng.GreetingService;
+import com.ychengycheng.service.GreetingService;
+import com.ychengycheng.annotation.YchengApi;
 
+@YchengApi
 public class GreetingServiceImpl implements GreetingService {
     @Override
     public String sayHello() {

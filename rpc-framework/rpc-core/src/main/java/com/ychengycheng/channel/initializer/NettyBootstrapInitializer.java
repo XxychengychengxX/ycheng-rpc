@@ -41,15 +41,17 @@ public class NettyBootstrapInitializer {
     }
     */
 
+    static {
+        NioEventLoopGroup group = new NioEventLoopGroup();
+        BOOTSTRAP.group(group).channel(NioSocketChannel.class).handler(new SimpleConsumerChannelInitializer());
+    }
+
     private NettyBootstrapInitializer() {
     }
 
     public static Bootstrap getBootstrap() {
         //准备创建一个新的channel
-        NioEventLoopGroup group = new NioEventLoopGroup();
-        BOOTSTRAP.group(group)
-                 .channel(NioSocketChannel.class)
-                 .handler(new SimpleConsumerChannelInitializer());
+
         //启动客户端需要一个辅助类，bootstrap
         return BOOTSTRAP;
     }

@@ -5,11 +5,11 @@
 package com.ychengycheng.channel.encoder;
 
 import com.ychengycheng.constant.YchengRpcRequestFormatConstant;
+import com.ychengycheng.core.compress.Compressor;
+import com.ychengycheng.core.compress.CompressorFactory;
+import com.ychengycheng.core.serialize.Serializer;
+import com.ychengycheng.core.serialize.SerializerFactory;
 import com.ychengycheng.message.YchengRpcRequest;
-import com.ychengycheng.util.compress.Compressor;
-import com.ychengycheng.util.compress.CompressorFactory;
-import com.ychengycheng.util.serialize.SerializeFactory;
-import com.ychengycheng.util.serialize.Serializer;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
@@ -36,7 +36,7 @@ public class YchengDefaultRequestRpcEncoder extends MessageToByteEncoder<YchengR
 
 
         //报文body封装的是请求报文里的payload
-        Serializer serializer = SerializeFactory.getSerializer(ychengRpcRequest.getSerializeType()).getSerializer();
+        Serializer serializer = SerializerFactory.getSerializer(ychengRpcRequest.getSerializeType()).getImpl();
         //获取压缩器
         Compressor compressor = CompressorFactory.getCompressor(ychengRpcRequest.getCompressType()).getImpl();
         //1.对请求做序列化

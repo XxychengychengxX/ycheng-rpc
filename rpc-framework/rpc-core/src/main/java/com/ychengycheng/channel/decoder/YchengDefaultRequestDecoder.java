@@ -5,14 +5,14 @@
 package com.ychengycheng.channel.decoder;
 
 import com.ychengycheng.constant.YchengRpcRequestFormatConstant;
+import com.ychengycheng.core.compress.Compressor;
+import com.ychengycheng.core.compress.CompressorFactory;
+import com.ychengycheng.core.serialize.Serializer;
+import com.ychengycheng.core.serialize.SerializerFactory;
 import com.ychengycheng.emun.RequestType;
 import com.ychengycheng.exception.CompressException;
 import com.ychengycheng.message.RequestPayload;
 import com.ychengycheng.message.YchengRpcRequest;
-import com.ychengycheng.util.compress.Compressor;
-import com.ychengycheng.util.compress.CompressorFactory;
-import com.ychengycheng.util.serialize.SerializeFactory;
-import com.ychengycheng.util.serialize.Serializer;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -38,11 +38,11 @@ public class YchengDefaultRequestDecoder extends LengthFieldBasedFrameDecoder {
     @Override
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
         Thread.sleep(new Random().nextInt(50));
+
         Object decode = super.decode(ctx, in);
         if (decode != null) {
             return decodeFrame((ByteBuf) decode);
         }
-
         return null;
     }
 
@@ -107,7 +107,7 @@ public class YchengDefaultRequestDecoder extends LengthFieldBasedFrameDecoder {
         }
         //2.反序列化
         log.info("最终的请求负载如下:{}", payload);
-        Serializer serializer = SerializeFactory.getSerializer(serializeType).getSerializer();
+        Serializer serializer = SerializerFactory.getSerializer(serializeType).getImpl();
         RequestPayload requestPayload = serializer.deSerlialize(payload, RequestPayload.class);
         ychengRpcRequest.setRequestPayload(requestPayload);
 
